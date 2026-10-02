@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { HttpError } from "../middleware/errors.js";
 
 // Two layers of protection so that when friends edit the same trip at the same
 // moment, no change is lost:
@@ -9,7 +10,7 @@ import mongoose from "mongoose";
 
 const locks = new Map(); // key -> promise of the last queued job
 
-async function withLock(key, fn) {
+export async function withLock(key, fn) {
   const previous = locks.get(key) || Promise.resolve();
   let release;
   const current = new Promise((r) => (release = r));
@@ -33,7 +34,7 @@ export function updateWithRetry(Model, id, mutate, attempts = 5) {
   return withLock(`${Model.modelName}:${id}`, async () => {
     for (let i = 0; i < attempts; i++) {
       const doc = await Model.findById(id);
-      if (!doc) return null;
+      if (!doc) throw new HttpError(404, `${Model.modelName} not found`); // deleted meanwhile
       const result = await mutate(doc);
       try {
         await doc.save();

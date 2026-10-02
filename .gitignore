@@ -4,3 +4,8 @@ dist/
 .env.local
 *.log
 .DS_Store
+
+# Not part of the project
+Claude outputs/
+/package-lock.json
+client/src/state.json

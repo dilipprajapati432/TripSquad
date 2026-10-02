@@ -1,19 +1,28 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api.js";
 import { getSocket } from "../lib/socket.js";
-import { money, formatDate, CATEGORY_ICONS } from "../lib/format.js";
+import { Handshake, Plus, Scale, Target, Trash2, Receipt } from "lucide-react";
+import { money, formatDay } from "../lib/format.js";
+import { CATEGORY_ICONS, CATEGORY_LABELS, CATEGORY_TINTS } from "../lib/icons.jsx";
 import Avatar from "../components/Avatar.jsx";
-import Modal from "../components/Modal.jsx";
+import { useUI } from "../context/UIContext.jsx";
 import AddExpense from "./AddExpense.jsx";
 
-export default function MoneyTab({ trip, userId, meta }) {
+function CatIcon({ category, size = 15 }) {
+  const Icon = CATEGORY_ICONS[category] || CATEGORY_ICONS.other;
+  return <Icon size={size} />;
+}
+
+export default function MoneyTab({ trip, userId, meta, onProfile }) {
+  const { confirm, toast } = useUI();
   const [expenses, setExpenses] = useState(null);
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState("");
   const [adding, setAdding] = useState(false);
   const [budgetInput, setBudgetInput] = useState("");
   const [editingBudget, setEditingBudget] = useState(false);
-  const [confirmation, setConfirmation] = useState(null);
+  const [settling, setSettling] = useState(null); // "from-to" of the payment being recorded
+  const [payInfo, setPayInfo] = useState({}); // userId -> how they want to be paid
 
   const memberById = useMemo(() => Object.fromEntries(trip.members.map((m) => [m.id, m])), [trip.members]);
   const name = (id) => (id === userId ? "You" : memberById[id]?.name || "Former member");
@@ -33,7 +42,11 @@ export default function MoneyTab({ trip, userId, meta }) {
     load();
     const socket = getSocket();
     socket.on("expenses:updated", load); // a friend added/removed an expense
-    return () => socket.off("expenses:updated", load);
+    socket.on("connect", load); // catch up on anything added while we were offline
+    return () => {
+      socket.off("expenses:updated", load);
+      socket.off("connect", load);
+    };
   }, [load]);
 
   // Balances change when members join/leave
@@ -42,26 +55,44 @@ export default function MoneyTab({ trip, userId, meta }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trip.members.length]);
 
+  // Show "Pay via: Revolut @riya" next to payments I need to make
+  const payees = summary?.payments.filter((p) => p.from === userId).map((p) => p.to).join(",") || "";
+  useEffect(() => {
+    for (const id of payees.split(",").filter(Boolean)) {
+      api(`/users/${id}`)
+        .then((d) => setPayInfo((prev) => ({ ...prev, [id]: d.user.paymentInfo })))
+        .catch(() => {});
+    }
+  }, [payees]);
+
   async function settle(p) {
-    setConfirmation({ type: "settle", payment: p });
+    if (settling) return;
+    const ok = await confirm({
+      title: "Record payment",
+      message: `Record that ${name(p.from)} paid ${name(p.to)} ${money(p.amount, cur)}? Everyone's balances update right away.`,
+      confirmText: "Mark paid",
+    });
+    if (!ok) return;
+    setSettling(`${p.from}-${p.to}`);
+    try {
+      await api(`/trips/${trip.id}/expenses/settlements`, { method: "POST", body: p });
+      toast("Payment recorded", { icon: "settle", type: "success" });
+    } catch (e) {
+      toast(e.message, { type: "error" });
+    } finally {
+      setSettling(null);
+      load(); // the server may have refused because someone else just recorded it
+    }
   }
 
   async function remove(e) {
-    setConfirmation({ type: "remove", expense: e });
-  }
-
-  async function confirmAction() {
-    const action = confirmation;
-    setConfirmation(null);
+    const ok = await confirm({ title: "Delete expense", message: `Delete "${e.description}"? Balances will be recalculated.`, confirmText: "Delete", danger: true });
+    if (!ok) return;
     try {
-      if (action.type === "settle") {
-        await api(`/trips/${trip.id}/expenses/settlements`, { method: "POST", body: action.payment });
-      } else {
-        await api(`/trips/${trip.id}/expenses/${action.expense.id}`, { method: "DELETE" });
-      }
+      await api(`/trips/${trip.id}/expenses/${e.id}`, { method: "DELETE" });
       load();
-    } catch (e) {
-      setError(e.message);
+    } catch (err) {
+      toast(err.message, { type: "error" });
     }
   }
 
@@ -90,18 +121,18 @@ export default function MoneyTab({ trip, userId, meta }) {
     <div className="money">
       <div className="stat-grid">
         <div className="card stat">
-          <span className="muted small">Group total</span>
+          <span className="stat-label"><span className="stat-icon tint-amber"><Receipt size={16} /></span> Group total</span>
           <strong className="stat-value">{money(summary.totalSpent, cur)}</strong>
         </div>
         <div className="card stat">
-          <span className="muted small">Your balance</span>
+          <span className="stat-label"><span className={`stat-icon ${myBalance < 0 ? "tint-red" : "tint-green"}`}><Scale size={16} /></span> Your balance</span>
           <strong className={`stat-value ${myBalance > 0 ? "pos" : myBalance < 0 ? "neg" : ""}`}>
-            {myBalance === 0 ? "Settled ✓" : `${myBalance > 0 ? "+" : "−"}${money(Math.abs(myBalance), cur)}`}
+            {myBalance === 0 ? "Settled" : `${myBalance > 0 ? "+" : "−"}${money(Math.abs(myBalance), cur)}`}
           </strong>
           <span className="muted small">{myBalance > 0 ? "others owe you" : myBalance < 0 ? "you owe" : "nothing owed"}</span>
         </div>
         <div className="card stat">
-          <span className="muted small">Your share of spending</span>
+          <span className="stat-label"><span className="stat-icon tint-blue"><Target size={16} /></span> Your share of spending</span>
           <strong className="stat-value">{money(mySpent, cur)}</strong>
           {editingBudget ? (
             <form className="row" onSubmit={saveBudget}>
@@ -127,7 +158,7 @@ export default function MoneyTab({ trip, userId, meta }) {
           <section className="card">
             <h3>Settle up</h3>
             {summary.payments.length === 0 ? (
-              <p className="muted">Everyone is settled up. 🎉</p>
+              <p className="muted">Everyone is settled up.</p>
             ) : (
               <>
                 <p className="muted small">
@@ -137,12 +168,13 @@ export default function MoneyTab({ trip, userId, meta }) {
                 <ul className="list">
                   {summary.payments.map((p, i) => (
                     <li key={i} className="settle-row">
-                      <Avatar member={memberById[p.from]} size={28} />
+                      <Avatar member={memberById[p.from]} size={28} onClick={() => onProfile?.(p.from)} />
                       <span>
                         <strong>{name(p.from)}</strong> {p.from === userId ? "pay" : "pays"} <strong>{name(p.to)}</strong>
                       </span>
                       <strong className="push">{money(p.amount, cur)}</strong>
-                      {canRecord(p) && <button className="btn btn-secondary btn-sm" onClick={() => settle(p)}>Mark paid</button>}
+                      {canRecord(p) && <button className="btn btn-secondary btn-sm" onClick={() => settle(p)} disabled={settling === `${p.from}-${p.to}`}>{settling === `${p.from}-${p.to}` ? "Saving…" : "Mark paid"}</button>}
+                      {p.from === userId && payInfo[p.to] && <span className="pay-hint">{memberById[p.to]?.name.split(" ")[0]} accepts: {payInfo[p.to]}</span>}
                     </li>
                   ))}
                 </ul>
@@ -157,7 +189,7 @@ export default function MoneyTab({ trip, userId, meta }) {
                 const b = summary.balances[m.id] || 0;
                 return (
                   <li key={m.id} className="settle-row">
-                    <Avatar member={m} size={28} />
+                    <Avatar member={m} size={28} onClick={() => onProfile?.(m.id)} />
                     <span>{m.id === userId ? `${m.name} (you)` : m.name}</span>
                     <span className="muted small">paid {money(summary.perMember[m.id]?.paid || 0, cur)}</span>
                     <strong className={`push ${b > 0 ? "pos" : b < 0 ? "neg" : ""}`}>{b === 0 ? "—" : `${b > 0 ? "+" : "−"}${money(Math.abs(b), cur)}`}</strong>
@@ -172,8 +204,8 @@ export default function MoneyTab({ trip, userId, meta }) {
               <h3>By category</h3>
               {Object.entries(summary.byCategory).sort((a, b) => b[1] - a[1]).map(([c, v]) => (
                 <div key={c} className="cat-row">
-                  <span>{CATEGORY_ICONS[c]} {c}</span>
-                  <div className="bar"><span style={{ width: `${(v / maxCat) * 100}%` }} /></div>
+                  <span className="inline-icon"><span className={`cat-dot ${CATEGORY_TINTS[c] || "tint-gray"}`}><CatIcon category={c} size={13} /></span> {CATEGORY_LABELS[c] || c}</span>
+                  <div className={`bar bar-tint ${CATEGORY_TINTS[c] || "tint-gray"}`}><span style={{ width: `${(v / maxCat) * 100}%` }} /></div>
                   <span className="small">{money(v, cur)}</span>
                 </div>
               ))}
@@ -184,7 +216,7 @@ export default function MoneyTab({ trip, userId, meta }) {
         <section className="card">
           <div className="section-head">
             <h3>Expenses</h3>
-            <button className="btn btn-primary btn-sm" onClick={() => setAdding(true)}>+ Add expense</button>
+            <button className="btn btn-primary btn-sm" onClick={() => setAdding(true)}><Plus size={15} /> Add expense</button>
           </div>
           {error && <p className="error">{error}</p>}
           {expenses.length === 0 ? (
@@ -196,11 +228,11 @@ export default function MoneyTab({ trip, userId, meta }) {
                 const settlement = e.kind === "settlement";
                 return (
                   <li key={e.id} className={`expense ${settlement ? "expense-settle" : ""}`}>
-                    <span className="expense-icon">{settlement ? "🤝" : CATEGORY_ICONS[e.category]}</span>
+                    <span className={`expense-icon ${settlement ? "tint-green" : CATEGORY_TINTS[e.category] || "tint-gray"}`}>{settlement ? <Handshake size={18} /> : <CatIcon category={e.category} size={18} />}</span>
                     <div className="expense-main">
                       <strong>{settlement ? `${name(e.paidBy)} paid ${name(e.splits[0]?.user)}` : e.description}</strong>
                       <span className="muted small">
-                        {formatDate(e.date)} · {settlement ? "settle-up" : `${name(e.paidBy)} paid`}
+                        {formatDay(e.date)} · {settlement ? "settle-up" : `${name(e.paidBy)} paid`}
                         {!settlement && e.splits.length > 0 && ` · split ${e.splits.length} ways`}
                       </span>
                     </div>
@@ -210,7 +242,7 @@ export default function MoneyTab({ trip, userId, meta }) {
                       {!settlement && myShare > 0 && <span className="small">your share {money(myShare, cur)}</span>}
                     </div>
                     {(e.createdBy === userId || trip.isOwner) && (
-                      <button className="icon-btn" title="Delete" onClick={() => remove(e)}>🗑</button>
+                      <button className="icon-btn" title="Delete" aria-label="Delete expense" onClick={() => remove(e)}><Trash2 size={16} /></button>
                     )}
                   </li>
                 );
@@ -220,24 +252,6 @@ export default function MoneyTab({ trip, userId, meta }) {
         </section>
       </div>
 
-      {confirmation && (
-        <Modal
-          title={confirmation.type === "settle" ? "Record payment" : "Delete expense"}
-          onClose={() => setConfirmation(null)}
-        >
-          <p>
-            {confirmation.type === "settle"
-              ? `Record that ${name(confirmation.payment.from)} paid ${name(confirmation.payment.to)} ${money(confirmation.payment.amount, cur)}?`
-              : `Delete "${confirmation.expense.description}"?`}
-          </p>
-          <div className="row modal-actions">
-            <button className="btn btn-danger" onClick={() => setConfirmation(null)}>Cancel</button>
-            <button className={`btn ${confirmation.type === "remove" ? "btn-danger" : "btn-primary"}`} onClick={confirmAction}>
-              {confirmation.type === "settle" ? "Mark paid" : "Delete"}
-            </button>
-          </div>
-        </Modal>
-      )}
       {adding && <AddExpense trip={trip} userId={userId} meta={meta} onClose={() => setAdding(false)} onSaved={load} />}
     </div>
   );

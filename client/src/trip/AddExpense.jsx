@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api.js";
-import { money, CATEGORY_ICONS } from "../lib/format.js";
+import { localToday, money } from "../lib/format.js";
+import { CATEGORY_ICONS, CATEGORY_LABELS, CATEGORY_TINTS } from "../lib/icons.jsx";
 import Modal from "../components/Modal.jsx";
 
-const today = () => new Date().toISOString().slice(0, 10);
+function CategoryIcon({ category }) {
+  const Icon = CATEGORY_ICONS[category] || CATEGORY_ICONS.other;
+  return <Icon size={16} />;
+}
+
 
 export default function AddExpense({ trip, userId, meta, onClose, onSaved }) {
   const [form, setForm] = useState({
@@ -12,7 +17,7 @@ export default function AddExpense({ trip, userId, meta, onClose, onSaved }) {
     currency: trip.currency,
     paidBy: userId,
     category: "food",
-    date: today(),
+    date: localToday(),
     splitMode: "equal",
   });
   const [participants, setParticipants] = useState(() => Object.fromEntries(trip.members.map((m) => [m.id, true])));
@@ -55,7 +60,13 @@ export default function AddExpense({ trip, userId, meta, onClose, onSaved }) {
 
   async function submit(e) {
     e.preventDefault();
+    if (busy) return;
     setError("");
+    const amountText = String(form.amount).trim();
+    if (!/^\d+(\.\d{1,2})?$/.test(amountText) || Number(amountText) <= 0) return setError("Enter an amount greater than 0, with at most 2 decimals.");
+    if (!form.description.trim()) return setError("What was this expense for?");
+    if (form.splitMode === "equal" && chosenCount === 0) return setError("Choose at least one person to split with.");
+    if (form.splitMode === "exact" && remaining !== 0) return setError("The shares must add up to the total.");
     const body = {
       description: form.description,
       amount: form.amount,
@@ -123,10 +134,11 @@ export default function AddExpense({ trip, userId, meta, onClose, onSaved }) {
             <input type="date" value={form.date} onChange={set("date")} />
           </label>
         </div>
-        <div className="chips">
+        <div className="cat-grid" role="radiogroup" aria-label="Category">
           {meta.categories.map((c) => (
-            <button type="button" key={c} className={`chip chip-cap ${form.category === c ? "chip-active" : ""}`} onClick={() => setForm({ ...form, category: c })}>
-              {CATEGORY_ICONS[c]} {c}
+            <button type="button" key={c} role="radio" aria-checked={form.category === c} className={`cat-choice ${form.category === c ? "is-active" : ""}`} onClick={() => setForm({ ...form, category: c })}>
+              <span className={`cat-dot ${CATEGORY_TINTS[c] || "tint-gray"}`}><CategoryIcon category={c} /></span>
+              {CATEGORY_LABELS[c] || c}
             </button>
           ))}
         </div>
@@ -166,7 +178,7 @@ export default function AddExpense({ trip, userId, meta, onClose, onSaved }) {
               </label>
             ))}
             <p className={`small ${remaining === 0 ? "ok-text" : "error"}`}>
-              {remaining === 0 ? "✓ Shares match the total" : remaining > 0 ? `${(remaining / 100).toFixed(2)} ${form.currency} left to assign` : `${(-remaining / 100).toFixed(2)} ${form.currency} too much`}
+              {remaining === 0 ? "Shares match the total" : remaining > 0 ? `${(remaining / 100).toFixed(2)} ${form.currency} left to assign` : `${(-remaining / 100).toFixed(2)} ${form.currency} too much`}
             </p>
           </div>
         )}

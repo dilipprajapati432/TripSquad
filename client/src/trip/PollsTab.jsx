@@ -1,16 +1,21 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../lib/api.js";
 import { getSocket } from "../lib/socket.js";
+import { Check, Plus, Trophy, Vote, X } from "lucide-react";
 import Avatar from "../components/Avatar.jsx";
+import { useUI } from "../context/UIContext.jsx";
 
 function NewPoll({ tripId, onDone }) {
   const [question, setQuestion] = useState("");
   const [options, setOptions] = useState(["", ""]);
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
   async function submit(e) {
     e.preventDefault();
+    if (busy) return;
     setError("");
+    setBusy(true);
     try {
       await api(`/trips/${tripId}/polls`, { method: "POST", body: { question, options: options.filter((o) => o.trim()) } });
       setQuestion("");
@@ -18,6 +23,8 @@ function NewPoll({ tripId, onDone }) {
       onDone();
     } catch (err) {
       setError(err.message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -34,13 +41,13 @@ function NewPoll({ tripId, onDone }) {
             maxLength={80}
           />
           {options.length > 2 && (
-            <button type="button" className="icon-btn" onClick={() => setOptions(options.filter((_, j) => j !== i))} aria-label="Remove option">✕</button>
+            <button type="button" className="icon-btn" onClick={() => setOptions(options.filter((_, j) => j !== i))} aria-label="Remove option"><X size={16} /></button>
           )}
         </div>
       ))}
       <div className="row">
-        {options.length < 8 && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOptions([...options, ""])}>+ Add option</button>}
-        <button className="btn btn-primary btn-sm push">Create poll</button>
+        {options.length < 8 && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOptions([...options, ""])}><Plus size={14} /> Add option</button>}
+        <button className="btn btn-primary btn-sm push" disabled={busy}>{busy ? "Creating…" : "Create poll"}</button>
       </div>
       {error && <p className="error">{error}</p>}
     </form>
@@ -48,6 +55,7 @@ function NewPoll({ tripId, onDone }) {
 }
 
 export default function PollsTab({ trip, userId }) {
+  const { confirm } = useUI();
   const [polls, setPolls] = useState(null);
   const [error, setError] = useState("");
   const memberById = useMemo(() => Object.fromEntries(trip.members.map((m) => [m.id, m])), [trip.members]);
@@ -74,7 +82,10 @@ export default function PollsTab({ trip, userId }) {
     };
   }, [trip.id]);
 
+  const pending = useRef(new Set()); // stops a double click from voting and un-voting
   async function act(path, method = "POST", body) {
+    if (pending.current.has(path)) return;
+    pending.current.add(path);
     setError("");
     try {
       const d = await api(`/trips/${trip.id}/polls${path}`, { method, body });
@@ -82,6 +93,8 @@ export default function PollsTab({ trip, userId }) {
       if (method === "DELETE") setPolls((prev) => prev.filter((p) => !path.endsWith(p.id)));
     } catch (e) {
       setError(e.message);
+    } finally {
+      pending.current.delete(path);
     }
   }
 
@@ -92,7 +105,11 @@ export default function PollsTab({ trip, userId }) {
       {!polls ? (
         <div className="spinner" />
       ) : polls.length === 0 ? (
-        <p className="muted center">No polls yet. Ask the group something!</p>
+        <div className="empty card">
+          <div className="empty-icon"><Vote size={22} /></div>
+          <p><strong>No polls yet</strong></p>
+          <p className="muted small">Ask the group to pick a restaurant, a day trip or a check-in time.</p>
+        </div>
       ) : (
         polls.map((poll) => {
           const total = poll.options.reduce((n, o) => n + o.votes.length, 0);
@@ -119,7 +136,7 @@ export default function PollsTab({ trip, userId }) {
                     onClick={() => act(`/${poll.id}/vote`, "POST", { option: i })}
                   >
                     <span className="poll-fill" style={{ width: `${pct}%` }} />
-                    <span className="poll-text">{winner && "🏆 "}{o.text}{myVote === i && " ✓"}</span>
+                    <span className="poll-text">{winner && <Trophy size={14} className="poll-win" />}{o.text}{myVote === i && <Check size={14} className="poll-check" />}</span>
                     <span className="poll-voters">
                       {o.votes.slice(0, 5).map((v) => <Avatar key={v} member={memberById[v]} size={20} />)}
                     </span>
@@ -130,7 +147,7 @@ export default function PollsTab({ trip, userId }) {
               {canManage && (
                 <div className="row">
                   {!poll.closed && <button className="link-btn" onClick={() => act(`/${poll.id}/close`)}>Close poll</button>}
-                  <button className="link-btn danger" onClick={() => confirm("Delete this poll?") && act(`/${poll.id}`, "DELETE")}>Delete</button>
+                  <button className="link-btn danger" onClick={async () => (await confirm({ title: "Delete poll", message: `Delete "${poll.question}"?`, confirmText: "Delete", danger: true })) && act(`/${poll.id}`, "DELETE")}>Delete</button>
                 </div>
               )}
             </div>

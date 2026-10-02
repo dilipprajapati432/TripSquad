@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -14,11 +14,14 @@ import {
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { api } from "../lib/api.js";
-import { dayDate, formatDate, dayColor } from "../lib/format.js";
+import { CloudSun, Droplets, GripVertical, Lightbulb, Map as MapIcon, Sparkles, StickyNote, Trash2 } from "lucide-react";
+import { dayDate, formatDay, dayColor, isoDay } from "../lib/format.js";
+import { weatherIcon } from "../lib/icons.jsx";
 import MapView from "../components/MapView.jsx";
 import PlaceSearch from "../components/PlaceSearch.jsx";
 import Avatar from "../components/Avatar.jsx";
 import AIPlanner from "./AIPlanner.jsx";
+import LiveBar from "./LiveBar.jsx";
 
 // Which drop target is the pointer over? Prefer a place card (to insert before it),
 // then the day list itself; fall back to the closest target when outside everything.
@@ -31,14 +34,27 @@ function collision(args) {
   return closestCenter(args);
 }
 
-function PlaceCard({ place, index, trip, member, selected, onSelect, onChange, onDelete, dragHandle, overlay }) {
+/** Photo of the place (from Wikipedia) with its number on top, or just the colored number. */
+function PlaceThumb({ place, index }) {
+  const [failed, setFailed] = useState(false);
+  const num = <span className="place-num" style={{ background: dayColor(place.day) }}>{place.day === 0 ? <Lightbulb size={12} /> : index + 1}</span>;
+  if (!place.photo || failed) return <span className="place-thumb place-thumb-empty">{num}</span>;
+  return (
+    <span className="place-thumb">
+      <img src={place.photo} alt="" loading="lazy" onError={() => setFailed(true)} />
+      {num}
+    </span>
+  );
+}
+
+function PlaceCard({ place, index, trip, member, selected, onSelect, onChange, onDelete, dragHandle, overlay, onProfile }) {
   const [editing, setEditing] = useState(false);
   const [note, setNote] = useState(place.note);
 
   return (
     <div className={`place ${selected ? "place-selected" : ""} ${overlay ? "place-overlay" : ""}`} onClick={() => onSelect?.(place)}>
-      <button className="drag-handle" {...dragHandle} aria-label="Drag to reorder" onClick={(e) => e.stopPropagation()}>⋮⋮</button>
-      <span className="place-num" style={{ background: dayColor(place.day) }}>{place.day === 0 ? "•" : index + 1}</span>
+      <button className="drag-handle" {...dragHandle} aria-label="Drag to reorder" onClick={(e) => e.stopPropagation()}><GripVertical size={16} /></button>
+      <PlaceThumb place={place} index={index} />
       <div className="place-body">
         <div className="place-title">
           <strong>{place.name}</strong>
@@ -61,9 +77,9 @@ function PlaceCard({ place, index, trip, member, selected, onSelect, onChange, o
               <option value={0}>Ideas</option>
               {Array.from({ length: trip.days }, (_, i) => <option key={i + 1} value={i + 1}>Day {i + 1}</option>)}
             </select>
-            <button className="link-btn" onClick={() => setEditing(true)}>{place.note ? "Edit note" : "Add note"}</button>
-            <button className="link-btn danger" onClick={onDelete}>Remove</button>
-            {member && <span className="added-by"><Avatar member={member} size={18} /></span>}
+            <button className="link-btn" onClick={() => { setNote(place.note || ""); setEditing(true); }}><StickyNote size={14} /> {place.note ? "Edit note" : "Note"}</button>
+            <button className="icon-btn icon-btn-sm place-remove" onClick={onDelete} title="Remove place" aria-label={`Remove ${place.name}`}><Trash2 size={15} /></button>
+            {member && <span className="added-by"><Avatar member={member} size={20} title={`Added by ${member.name}`} onClick={() => onProfile?.(member.id)} /></span>}
           </div>
         )}
       </div>
@@ -80,16 +96,22 @@ function SortablePlace(props) {
   );
 }
 
-function DayColumn({ day, trip, children, count, onFocus, focused }) {
+function DayColumn({ day, trip, children, count, onFocus, focused, forecast }) {
+  const w = forecast && weatherIcon(forecast.code);
   const { setNodeRef, isOver } = useDroppable({ id: `day-${day}` });
   return (
-    <section className={`day ${isOver ? "day-over" : ""}`} data-day={day}>
+    <section className={`day ${isOver ? "day-over" : ""}`} data-day={day} style={{ "--day": dayColor(day) }}>
       <button className={`day-head ${focused ? "day-head-active" : ""}`} onClick={onFocus}>
         <span className="day-dot" style={{ background: dayColor(day) }} />
         <strong>{day === 0 ? "Ideas" : `Day ${day}`}</strong>
         <span className="muted small">
-          {day === 0 ? "not scheduled yet" : formatDate(dayDate(trip.startDate, day), { weekday: "short", day: "numeric", month: "short" })}
+          {day === 0 ? "not scheduled yet" : formatDay(dayDate(trip.startDate, day), { weekday: "short", day: "numeric", month: "short" })}
         </span>
+        {w && (
+          <span className="weather-chip" title={`${w.label}${forecast.rain != null ? `, ${forecast.rain}% chance of rain` : ""}`}>
+            <w.Icon size={14} /> {forecast.max}°/{forecast.min}°{forecast.rain >= 30 && <span className="muted rain"><Droplets size={12} />{forecast.rain}%</span>}
+          </span>
+        )}
         <span className="muted small push">{count} {count === 1 ? "place" : "places"}</span>
       </button>
       <div ref={setNodeRef} className="day-list">
@@ -100,7 +122,8 @@ function DayColumn({ day, trip, children, count, onFocus, focused }) {
   );
 }
 
-export default function PlanTab({ trip, setTrip, locations, aiEnabled }) {
+export default function PlanTab({ trip, setTrip, locations, aiEnabled, weather, onProfile, userId, share, onMessage }) {
+  const [showAllKey, setShowAllKey] = useState(0);
   const [filterDay, setFilterDay] = useState("all");
   const [selectedId, setSelectedId] = useState(null);
   const [flyTarget, setFlyTarget] = useState(null);
@@ -118,6 +141,11 @@ export default function PlanTab({ trip, setTrip, locations, aiEnabled }) {
     return map;
   }, [trip.places, days]);
 
+  // The owner shortened the trip while this day was selected
+  useEffect(() => {
+    if (filterDay !== "all" && filterDay > trip.days) setFilterDay("all");
+  }, [filterDay, trip.days]);
+
   const visible = filterDay === "all" ? trip.places : byDay[filterDay] || [];
   const activePlace = trip.places.find((p) => p.id === activeId);
 
@@ -127,13 +155,15 @@ export default function PlanTab({ trip, setTrip, locations, aiEnabled }) {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  async function run(promise) {
+  /** Wait for a change; if the server refuses it, show why and put back what we showed optimistically. */
+  async function run(promise, snapshot) {
     setError("");
     try {
       const d = await promise;
       if (d?.places) setTrip((t) => ({ ...t, places: d.places }));
     } catch (e) {
       setError(e.message);
+      if (snapshot) setTrip((t) => ({ ...t, places: snapshot }));
     }
   }
 
@@ -146,8 +176,9 @@ export default function PlanTab({ trip, setTrip, locations, aiEnabled }) {
 
   const updatePlace = (id, changes) => run(api(`/trips/${trip.id}/places/${id}`, { method: "PATCH", body: changes }));
   const deletePlace = (id) => {
+    const snapshot = trip.places;
     setTrip((t) => ({ ...t, places: t.places.filter((p) => p.id !== id) })); // optimistic
-    run(api(`/trips/${trip.id}/places/${id}`, { method: "DELETE" }));
+    run(api(`/trips/${trip.id}/places/${id}`, { method: "DELETE" }), snapshot);
   };
 
   function onDragEnd({ active, over }) {
@@ -180,11 +211,12 @@ export default function PlanTab({ trip, setTrip, locations, aiEnabled }) {
     }
 
     // Optimistic update so the drop feels instant; the server then confirms for everyone
+    const snapshot = trip.places;
     setTrip((t) => ({
       ...t,
       places: t.places.map((p) => (ids.includes(p.id) ? { ...p, day: targetDay, order: ids.indexOf(p.id) } : p)),
     }));
-    run(api(`/trips/${trip.id}/places/reorder`, { method: "PUT", body: { day: targetDay, ids } }));
+    run(api(`/trips/${trip.id}/places/reorder`, { method: "PUT", body: { day: targetDay, ids } }), snapshot);
   }
 
   const selectPlace = (p) => {
@@ -197,8 +229,8 @@ export default function PlanTab({ trip, setTrip, locations, aiEnabled }) {
       <div className="plan-list">
         <div className="plan-tools">
           <PlaceSearch center={trip.center} onPick={(r) => setPending({ ...r, day: filterDay === "all" ? 0 : filterDay, note: "" })} />
-          <button className="btn btn-ai" onClick={() => setAiOpen(true)} title={aiEnabled ? "" : "Add an AI key on the server to enable"}>
-            ✨ AI plan
+          <button className="btn btn-secondary" onClick={() => setAiOpen(true)} title={aiEnabled ? "" : "Add an AI key on the server to enable"}>
+            <Sparkles size={16} /> AI plan
           </button>
         </div>
 
@@ -222,6 +254,7 @@ export default function PlanTab({ trip, setTrip, locations, aiEnabled }) {
 
         {error && <p className="error">{error}</p>}
 
+        {weather?.note && <p className="muted small inline-icon"><CloudSun size={14} /> Weather: {weather.note}</p>}
         <div className="chips">
           <button className={`chip ${filterDay === "all" ? "chip-active" : ""}`} onClick={() => setFilterDay("all")}>All</button>
           {days.map((d) => (
@@ -232,11 +265,12 @@ export default function PlanTab({ trip, setTrip, locations, aiEnabled }) {
           ))}
         </div>
 
+        <div className="plan-scroll">
         {trip.places.length === 0 && !pending && (
           <div className="empty">
-            <div className="empty-icon">🗺️</div>
+            <div className="empty-icon"><MapIcon size={22} /></div>
             <p><strong>Your itinerary is empty.</strong></p>
-            <p className="muted small">Search for a place above, or let ✨ AI draft a plan. Everyone in the trip sees changes instantly.</p>
+            <p className="muted small">Search for a place above, or let AI draft a first plan. Everyone in the trip sees changes instantly.</p>
           </div>
         )}
 
@@ -248,7 +282,7 @@ export default function PlanTab({ trip, setTrip, locations, aiEnabled }) {
           onDragEnd={onDragEnd}
         >
           {(filterDay === "all" ? days : [filterDay]).map((d) => (
-            <DayColumn key={d} day={d} trip={trip} count={byDay[d]?.length || 0} focused={filterDay === d} onFocus={() => setFilterDay(filterDay === d ? "all" : d)}>
+            <DayColumn key={d} day={d} trip={trip} forecast={d > 0 ? weather?.days?.[isoDay(trip.startDate, d)] : null} count={byDay[d]?.length || 0} focused={filterDay === d} onFocus={() => setFilterDay(filterDay === d ? "all" : d)}>
               <SortableContext items={(byDay[d] || []).map((p) => p.id)} strategy={verticalListSortingStrategy}>
                 {(byDay[d] || []).map((p, i) => (
                   <SortablePlace
@@ -261,6 +295,7 @@ export default function PlanTab({ trip, setTrip, locations, aiEnabled }) {
                     onSelect={selectPlace}
                     onChange={(changes) => updatePlace(p.id, changes)}
                     onDelete={() => deletePlace(p.id)}
+                    onProfile={onProfile}
                   />
                 ))}
               </SortableContext>
@@ -270,8 +305,18 @@ export default function PlanTab({ trip, setTrip, locations, aiEnabled }) {
             {activePlace ? <PlaceCard place={activePlace} index={byDay[activePlace.day].indexOf(activePlace)} trip={trip} overlay /> : null}
           </DragOverlay>
         </DndContext>
+        </div>
       </div>
 
+      <div className="plan-right">
+      <LiveBar
+        trip={trip}
+        userId={userId}
+        locations={locations}
+        share={share}
+        onFocus={(l) => setFlyTarget({ lat: l.lat, lng: l.lng, n: Date.now() })}
+        onShowAll={() => setShowAllKey((k) => k + 1)}
+      />
       <div className="plan-map">
         <MapView
           places={visible}
@@ -285,12 +330,11 @@ export default function PlanTab({ trip, setTrip, locations, aiEnabled }) {
           }}
           fitKey={`${filterDay}-${visible.length}-${trip.id}`}
           flyTarget={flyTarget}
+          meId={userId}
+          showAllKey={showAllKey}
+          onMessage={onMessage}
         />
-        {Object.keys(locations).length > 0 && (
-          <div className="map-legend">
-            📍 Live: {Object.keys(locations).map((uid) => memberById[uid]?.name.split(" ")[0]).filter(Boolean).join(", ")}
-          </div>
-        )}
+      </div>
       </div>
 
       {aiOpen && (

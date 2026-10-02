@@ -22,8 +22,9 @@ export async function requireAuth(req, _res, next) {
   const token = header.startsWith("Bearer ") ? header.slice(7) : null;
   const userId = token && verifyToken(token);
   if (!userId) throw new HttpError(401, "Please log in again");
-  const user = await User.findById(userId);
-  if (!user) throw new HttpError(401, "Account not found");
+  // Skip the big photo field: it is only needed on the profile page
+  const user = await User.findById(userId).select("-avatar -passwordHash");
+  if (!user || user.deletedAt) throw new HttpError(401, "Account not found");
   req.user = user;
   next();
 }

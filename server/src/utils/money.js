@@ -5,10 +5,15 @@ export const CURRENCIES = ["INR", "AED", "EUR", "USD", "GBP", "THB", "SGD", "CHF
 
 /** Convert a user-entered amount like "24.5" to minor units (2450). Returns null if invalid. */
 export function toMinor(value) {
+  if (typeof value !== "number" && typeof value !== "string") return null;
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0) return null;
-  return Math.round(n * 100);
+  const minor = Math.round(n * 100);
+  return minor > MAX_MINOR ? null : minor;
 }
+
+/** Biggest amount we accept anywhere: 10 crore / 100 million in minor units. Keeps all sums exact. */
+export const MAX_MINOR = 100_000_000_00;
 
 /** Split `total` minor units equally among `n` people. The leftover paise go to the first people. */
 export function splitEqual(total, n) {
@@ -38,4 +43,13 @@ export function allocate(total, weights) {
 /** Convert minor units from one currency to another using `rate` (1 unit of FROM = rate units of TO). */
 export function convert(amountMinor, rate) {
   return Math.round(amountMinor * rate);
+}
+
+/** "₹2,400.00" style text for chat/activity messages. */
+export function formatMoney(minor, currency) {
+  try {
+    return new Intl.NumberFormat("en-IN", { style: "currency", currency }).format(minor / 100);
+  } catch {
+    return `${currency} ${(minor / 100).toFixed(2)}`;
+  }
 }

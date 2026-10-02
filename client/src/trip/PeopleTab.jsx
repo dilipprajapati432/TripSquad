@@ -1,74 +1,15 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { Check, Copy, MessageSquare, TriangleAlert } from "lucide-react";
 import { api } from "../lib/api.js";
 import { money } from "../lib/format.js";
+import { useUI } from "../context/UIContext.jsx";
 import Avatar from "../components/Avatar.jsx";
 
-function TripSettings({ trip, currencies }) {
+export default function PeopleTab({ trip, userId, online, meta, onProfile, onMessage }) {
   const navigate = useNavigate();
-  const [form, setForm] = useState({
-    name: trip.name,
-    destination: trip.destination,
-    startDate: trip.startDate.slice(0, 10),
-    endDate: trip.endDate.slice(0, 10),
-    currency: trip.currency,
-  });
-  const [msg, setMsg] = useState("");
-  const [error, setError] = useState("");
-  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
-
-  async function save(e) {
-    e.preventDefault();
-    setMsg("");
-    setError("");
-    try {
-      await api(`/trips/${trip.id}`, { method: "PATCH", body: form });
-      setMsg("Saved ✓");
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  async function del() {
-    if (!confirm(`Delete "${trip.name}" for everyone? This removes all places, polls and expenses.`)) return;
-    try {
-      await api(`/trips/${trip.id}`, { method: "DELETE" });
-      navigate("/", { replace: true });
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  return (
-    <form className="card stack" onSubmit={save}>
-      <h3>Trip settings</h3>
-      <label>Name<input value={form.name} onChange={set("name")} required /></label>
-      <label>Destination<input value={form.destination} onChange={set("destination")} required /></label>
-      <div className="row-2">
-        <label>Start<input type="date" value={form.startDate} onChange={set("startDate")} required /></label>
-        <label>End<input type="date" value={form.endDate} min={form.startDate} onChange={set("endDate")} required /></label>
-      </div>
-      <label>
-        Currency
-        <select value={form.currency} onChange={set("currency")}>
-          {currencies.map((c) => <option key={c}>{c}</option>)}
-        </select>
-      </label>
-      <p className="muted small">If you shorten the trip, places on removed days move back to Ideas.</p>
-      {error && <p className="error">{error}</p>}
-      <div className="row">
-        <button className="btn btn-primary btn-sm">Save changes</button>
-        {msg && <span className="ok-text small">{msg}</span>}
-        <button type="button" className="btn btn-danger btn-sm push" onClick={del}>Delete trip</button>
-      </div>
-    </form>
-  );
-}
-
-export default function PeopleTab({ trip, userId, online, meta }) {
-  const navigate = useNavigate();
+  const { toast, confirm } = useUI();
   const [copied, setCopied] = useState(false);
-  const [error, setError] = useState("");
   const link = `${window.location.origin}/join/${trip.inviteCode}`;
 
   async function copy() {
@@ -86,25 +27,34 @@ export default function PeopleTab({ trip, userId, online, meta }) {
   }
 
   async function resetLink() {
-    if (!confirm("Reset the invite link? The old link will stop working.")) return;
+    const ok = await confirm({ title: "Reset invite link?", message: "The old link will stop working. People already in the trip stay in.", confirmText: "Reset link" });
+    if (!ok) return;
     try {
       await api(`/trips/${trip.id}/invite/reset`, { method: "POST" });
+      toast("New invite link created", { type: "success" });
     } catch (e) {
-      setError(e.message);
+      toast(e.message, { type: "error" });
     }
   }
 
   async function removeMember(m) {
     const self = m.id === userId;
-    if (!confirm(self ? `Leave "${trip.name}"?` : `Remove ${m.name} from the trip?`)) return;
-    setError("");
+    const ok = await confirm({
+      title: self ? `Leave "${trip.name}"?` : `Remove ${m.name}?`,
+      message: self ? "You'll lose access to the plan, chat and expenses of this trip." : `${m.name.split(" ")[0]} will lose access to this trip. They can rejoin with the invite link.`,
+      confirmText: self ? "Leave trip" : "Remove",
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await api(`/trips/${trip.id}/members/${m.id}`, { method: "DELETE" });
       if (self) navigate("/", { replace: true });
     } catch (e) {
-      setError(e.message);
+      toast(e.message, { type: "error" });
     }
   }
+
+  const sorted = [...trip.members].sort((a, b) => (b.id === userId) - (a.id === userId) || online.includes(b.id) - online.includes(a.id));
 
   return (
     <div className="people">
@@ -113,45 +63,68 @@ export default function PeopleTab({ trip, userId, online, meta }) {
         <p className="muted small">Anyone with this link can join the trip (max {meta.maxMembers || 30} people).</p>
         <div className="invite-box">
           <code>{link}</code>
-          <button className="btn btn-primary btn-sm" onClick={copy}>{copied ? "Copied ✓" : "Copy link"}</button>
+          <button className="btn btn-primary btn-sm" onClick={copy}>{copied ? <><Check size={15} /> Copied</> : <><Copy size={15} /> Copy link</>}</button>
         </div>
-        <a
-          className="btn btn-whatsapp btn-sm"
-          href={`https://wa.me/?text=${encodeURIComponent(`Join our trip "${trip.name}" on TripSquad: ${link}`)}`}
-          target="_blank"
-          rel="noreferrer"
-        >
-          Share on WhatsApp
-        </a>
-        {trip.isOwner && <button className="link-btn" onClick={resetLink}>Reset invite link</button>}
+        <div className="row">
+          <a
+            className="btn btn-whatsapp btn-sm"
+            href={`https://wa.me/?text=${encodeURIComponent(`Join our trip "${trip.name}" on TripSquad: ${link}`)}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Share on WhatsApp
+          </a>
+          {trip.isOwner && <button className="link-btn" onClick={resetLink}>Reset invite link</button>}
+        </div>
       </section>
 
       <section className="card">
-        <h3>People ({trip.members.length})</h3>
-        {error && <p className="error">{error}</p>}
+        <div className="section-head">
+          <h3>People ({trip.members.length})</h3>
+          <span className="muted small">{trip.members.filter((m) => online.includes(m.id)).length} online</span>
+        </div>
         <ul className="list">
-          {trip.members.map((m) => (
-            <li key={m.id} className="settle-row">
-              <Avatar member={m} size={34} online={online.includes(m.id)} />
-              <span>
+          {sorted.map((m) => (
+            <li
+              key={m.id}
+              className="person-row"
+              onClick={() => onProfile(m.id)}
+              role="button"
+              tabIndex={0}
+              aria-label={`Open ${m.name}'s profile`}
+              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && e.target === e.currentTarget && (e.preventDefault(), onProfile(m.id))}
+            >
+              <Avatar member={m} size={42} online={online.includes(m.id)} />
+              <span style={{ flex: 1, minWidth: 0 }}>
                 <strong>{m.name}</strong> {m.id === userId && <span className="muted">(you)</span>}
                 <span className="muted small block">
                   {m.role === "owner" ? "Owner" : "Member"} · {online.includes(m.id) ? "online now" : "offline"}
                   {m.budget > 0 && ` · budget ${money(m.budget, trip.currency)}`}
                 </span>
+                {!m.hasEmergency && (
+                  <span className="warn-chip" title="No emergency contact on their profile">
+                    <TriangleAlert size={12} /> No emergency contact
+                    {m.id === userId && <> · <Link to="/profile" onClick={(e) => e.stopPropagation()}>add yours</Link></>}
+                  </span>
+                )}
               </span>
-              {m.role !== "owner" && (m.id === userId || trip.isOwner) && (
-                <button className="btn btn-ghost btn-sm push" onClick={() => removeMember(m)}>
-                  {m.id === userId ? "Leave" : "Remove"}
-                </button>
-              )}
+              <span className="row" onClick={(e) => e.stopPropagation()}>
+                {m.id !== userId && <button className="icon-btn icon-btn-bordered" onClick={() => onMessage(m.id)} title={`Message ${m.name}`} aria-label={`Message ${m.name}`}><MessageSquare size={16} /></button>}
+                {m.role !== "owner" && (m.id === userId || trip.isOwner) && (
+                  <button className="btn btn-ghost btn-sm" onClick={() => removeMember(m)}>{m.id === userId ? "Leave" : "Remove"}</button>
+                )}
+              </span>
             </li>
           ))}
         </ul>
-        <p className="muted small">People can only leave once their balance is settled.</p>
+        {trip.members.some((m) => !m.hasEmergency) && (
+          <p className="small warn-box" style={{ marginTop: "0.6rem" }}>
+            <TriangleAlert size={14} /> {trip.members.filter((m) => !m.hasEmergency).length} of {trip.members.length} people have no emergency contact yet.
+            {trip.isOwner && !trip.requireContact && " You can require it in trip settings."}
+          </p>
+        )}
+        <p className="muted small">Tap someone to see their profile. People can leave once their balance is settled.</p>
       </section>
-
-      {trip.isOwner && <TripSettings key={trip.id + trip.name + trip.startDate + trip.endDate} trip={trip} currencies={meta.currencies} />}
     </div>
   );
 }

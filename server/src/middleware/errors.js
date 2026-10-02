@@ -23,8 +23,10 @@ export function errorHandler(err, _req, res, _next) {
   if (err instanceof mongoose.Error.VersionError) {
     return res.status(409).json({ error: "Someone else changed this at the same moment. Please try again." });
   }
+  if (err?.code === 11000) return res.status(409).json({ error: "That already exists (for example, an account with this email)." });
   if (err instanceof mongoose.Error.CastError) return res.status(400).json({ error: "Invalid id" });
   if (err?.type === "entity.parse.failed") return res.status(400).json({ error: "Invalid JSON" });
+  if (err?.type === "entity.too.large") return res.status(413).json({ error: "That file is too large." });
   console.error(err);
   res.status(500).json({ error: "Something went wrong on the server" });
 }

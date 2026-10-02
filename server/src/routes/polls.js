@@ -5,6 +5,8 @@ import { HttpError } from "../middleware/errors.js";
 import { updateWithRetry } from "../utils/retry.js";
 import { serializePoll } from "../utils/serialize.js";
 import { emitToTrip } from "../services/realtime.js";
+import { announce } from "../services/activity.js";
+import { str } from "../utils/input.js";
 
 // Mounted at /api/trips/:tripId/polls (loadTrip already ran)
 const router = Router({ mergeParams: true });
@@ -28,9 +30,10 @@ router.get("/", async (req, res) => {
 });
 
 router.post("/", async (req, res) => {
-  const question = String(req.body?.question || "").trim();
+  const question = str(req.body?.question).trim().slice(0, 200);
   const options = (Array.isArray(req.body?.options) ? req.body.options : [])
-    .map((o) => String(o || "").trim())
+    .filter((o) => typeof o === "string" || typeof o === "number")
+    .map((o) => String(o).trim().slice(0, 80))
     .filter(Boolean);
   if (question.length < 3) throw new HttpError(400, "Please write a question");
   if (options.length < 2 || options.length > 8) throw new HttpError(400, "A poll needs 2 to 8 options");
@@ -43,13 +46,14 @@ router.post("/", async (req, res) => {
     createdBy: req.user._id,
   });
   broadcast(req, poll);
+  await announce(req.trip._id, req.user._id, `${req.user.name} started a poll: ${question}`, { icon: "poll" });
   res.status(201).json({ poll: serializePoll(poll, req.user._id) });
 });
 
 // One vote per person. Voting again moves your vote. Sending the same option again removes it.
 router.post("/:pollId/vote", async (req, res) => {
   const existing = await findPoll(req);
-  const index = Number(req.body?.option);
+  const index = typeof req.body?.option === "number" ? req.body.option : NaN; // not null/true/"1"
   if (!Number.isInteger(index) || index < 0 || index >= existing.options.length) throw new HttpError(400, "Invalid option");
   const me = req.user._id.toString();
 
@@ -71,9 +75,18 @@ router.post("/:pollId/close", async (req, res) => {
     throw new HttpError(403, "Only the poll creator or trip owner can close it");
   }
   const poll = await updateWithRetry(Poll, existing._id, (p) => {
+    if (p.closed) throw new HttpError(400, "This poll is already closed");
     p.closed = true;
   });
   broadcast(req, poll);
+  const max = Math.max(...poll.options.map((o) => o.votes.length));
+  const winners = poll.options.filter((o) => o.votes.length === max && max > 0).map((o) => o.text);
+  await announce(
+    req.trip._id,
+    req.user._id,
+    winners.length ? `Poll closed — "${poll.question}": ${winners.join(" & ")} ${winners.length > 1 ? "tied" : "won"}` : `Poll closed — "${poll.question}" (no votes)`,
+    { icon: "result" }
+  );
   res.json({ poll: serializePoll(poll, req.user._id) });
 });
 

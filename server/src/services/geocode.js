@@ -1,4 +1,5 @@
 import { env } from "../config/env.js";
+import { setBounded } from "../utils/cache.js";
 
 // Free geocoding with OpenStreetMap Nominatim.
 // Their usage policy: max 1 request per second, and a real User-Agent. We queue
@@ -10,7 +11,12 @@ const CACHE_MS = 24 * 60 * 60 * 1000;
 let queue = Promise.resolve();
 let lastCall = 0;
 
+let pending = 0;
+const MAX_PENDING = 25; // ~30 s of waiting at most; beyond that, fail fast instead of piling up
+
 function throttle(fn) {
+  if (pending >= MAX_PENDING) return Promise.reject(new Error("Place search is busy. Try again in a moment."));
+  pending++;
   const run = queue.then(async () => {
     const wait = Math.max(0, lastCall + 1100 - Date.now());
     if (wait) await new Promise((r) => setTimeout(r, wait));
@@ -18,7 +24,7 @@ function throttle(fn) {
     return fn();
   });
   queue = run.catch(() => {});
-  return run;
+  return run.finally(() => pending--);
 }
 
 /**
@@ -53,6 +59,6 @@ export async function searchPlaces(query, { near, limit = 6 } = {}) {
     }));
   });
 
-  cache.set(key, { at: Date.now(), results });
+  setBounded(cache, key, { at: Date.now(), results });
   return results;
 }

@@ -51,7 +51,7 @@ export default function AIPlanner({ trip, aiEnabled, onClose, onAdded }) {
   const count = Object.values(chosen).filter(Boolean).length;
 
   return (
-    <Modal title="✨ AI trip planner" onClose={onClose} wide>
+    <Modal title="AI trip planner" onClose={onClose} wide>
       {!aiEnabled ? (
         <p className="muted">
           The AI planner is turned off. Add a free <strong>GEMINI_API_KEY</strong> or <strong>GROQ_API_KEY</strong> to <code>server/.env</code> and restart the server.

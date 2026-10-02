@@ -2,6 +2,7 @@ import { Router } from "express";
 import { HttpError } from "../middleware/errors.js";
 import { aiAvailable, generatePlan } from "../services/ai.js";
 import { searchPlaces } from "../services/geocode.js";
+import { str } from "../utils/input.js";
 
 // Mounted at /api/trips/:tripId/ai (loadTrip already ran)
 const router = Router({ mergeParams: true });
@@ -14,7 +15,7 @@ const router = Router({ mergeParams: true });
  */
 router.post("/plan", async (req, res) => {
   if (!aiAvailable()) throw new HttpError(503, "AI planner is off. Add GEMINI_API_KEY or GROQ_API_KEY to server/.env");
-  const request = String(req.body?.request || "").trim().slice(0, 500);
+  const request = str(req.body?.request).trim().slice(0, 500);
   if (request.length < 5) throw new HttpError(400, "Tell the AI a bit about your trip (e.g. beaches, food, budget)");
 
   const trip = req.trip;

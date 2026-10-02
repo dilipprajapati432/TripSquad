@@ -24,10 +24,13 @@ export function useTrip(tripId, userId, { onGone } = {}) {
     [userId]
   );
 
+  // Only the latest request may update state (a slow reply for an old trip must not win)
+  const latest = useRef(0);
   const reload = useCallback(() => {
+    const n = ++latest.current;
     return api(`/trips/${tripId}`)
-      .then((d) => setTrip(withOwner(d.trip)))
-      .catch((e) => setError(e.message));
+      .then((d) => n === latest.current && setTrip(withOwner(d.trip)))
+      .catch((e) => n === latest.current && setError(e.message));
   }, [tripId, withOwner]);
 
   useEffect(() => {
@@ -69,8 +72,9 @@ export function useTrip(tripId, userId, { onGone } = {}) {
         delete next[uid];
         return next;
       });
-    const onDeleted = (p) => p.tripId === tripId && onGoneRef.current?.("This trip was deleted by its owner.");
-    const onRemoved = (p) => p.tripId === tripId && onGoneRef.current?.("You were removed from this trip.");
+    // If I deleted/left it myself, the page that did it already navigates away — no scary toast
+    const onDeleted = (p) => p.tripId === tripId && p.by !== userId && onGoneRef.current?.("This trip was deleted by its owner.");
+    const onRemoved = (p) => p.tripId === tripId && p.by !== userId && onGoneRef.current?.("You were removed from this trip.");
 
     if (socket.connected) onConnect();
     socket.on("connect", onConnect);
@@ -105,7 +109,7 @@ export function useTrip(tripId, userId, { onGone } = {}) {
       socket.off("trip:removed", onRemoved);
       clearInterval(prune);
     };
-  }, [tripId, reload, withOwner]);
+  }, [tripId, reload, withOwner, userId]);
 
   return { trip, setTrip, error, online, locations, setLocations, connected, reload };
 }

@@ -6,11 +6,12 @@ import { searchPlaces } from "../services/geocode.js";
 import { getRate } from "../services/fx.js";
 import { aiAvailable } from "../services/ai.js";
 import { env } from "../config/env.js";
+import { FOOD_OPTIONS } from "../models/User.js";
 
 const router = Router();
 
 router.get("/meta", (_req, res) => {
-  res.json({ currencies: CURRENCIES, categories: CATEGORIES, aiEnabled: aiAvailable(), maxMembers: env.maxMembers });
+  res.json({ currencies: CURRENCIES, categories: CATEGORIES, aiEnabled: aiAvailable(), maxMembers: env.maxMembers, foodOptions: FOOD_OPTIONS.filter(Boolean) });
 });
 
 // Place search for the "Add place" box: /api/geo/search?q=baga beach&lat=15.5&lng=73.8

@@ -1,4 +1,4 @@
-// Small helper so routes can broadcast to everyone in a trip without importing Socket.io.
+// Small helper so routes can broadcast without importing Socket.io everywhere.
 
 let io = null;
 
@@ -6,23 +6,32 @@ export function setIO(instance) {
   io = instance;
 }
 
-export function roomFor(tripId) {
-  return `trip:${tripId}`;
-}
+export const roomFor = (tripId) => `trip:${tripId}`;
+export const userRoom = (userId) => `user:${userId}`;
 
 /** Send an event to everyone viewing this trip. */
 export function emitToTrip(tripId, event, payload) {
   if (io) io.to(roomFor(tripId)).emit(event, payload);
 }
 
-/** Remove a user's open connections from a trip room (e.g. after they are removed from the trip). */
-export async function kickFromTrip(tripId, userId) {
+/** Send an event to all open tabs of specific users (used for private messages). */
+export function emitToUsers(userIds, event, payload) {
   if (!io) return;
-  const sockets = await io.in(roomFor(tripId)).fetchSockets();
-  for (const s of sockets) {
-    if (s.data.userId === String(userId)) {
-      s.leave(roomFor(tripId));
-      s.emit("trip:removed", { tripId: String(tripId) });
-    }
-  }
+  io.to(userIds.map((id) => userRoom(String(id)))).emit(event, payload);
+}
+
+// Room bookkeeping (presence, live location) lives in socket.js, which registers these.
+let control = { kickUser() {}, closeTrip() {} };
+export function setRoomControl(c) {
+  control = c;
+}
+
+/** Take a user out of a trip right away: their tabs leave the room, stop sharing location and get told. */
+export function kickFromTrip(tripId, userId, by) {
+  control.kickUser(tripId, userId, by);
+}
+
+/** Everyone leaves the trip room (the trip was deleted). */
+export function closeTripRoom(tripId) {
+  control.closeTrip(tripId);
 }

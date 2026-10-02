@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Search } from "lucide-react";
 import { api } from "../lib/api.js";
 
 /** Search box that finds real places (OpenStreetMap) near the trip destination. */
@@ -47,11 +48,12 @@ export default function PlaceSearch({ center, onPick }) {
 
   return (
     <div className="search">
+      <Search size={16} className="search-icon" aria-hidden="true" />
       <input
         value={q}
         onChange={(e) => setQ(e.target.value)}
         onFocus={() => results.length && setOpen(true)}
-        placeholder="🔍 Search a place to add (e.g. Baga Beach)"
+        placeholder="Search a place to add (e.g. Baga Beach)"
         aria-label="Search places"
       />
       {loading && <span className="search-loading spinner-sm" />}

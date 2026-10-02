@@ -19,7 +19,9 @@ export function AuthProvider({ children }) {
     if (!getToken()) return;
     api("/auth/me")
       .then((d) => setUser(d.user))
-      .catch(() => logout())
+      // A 401 already logs out (see setUnauthorizedHandler). Other errors (server down,
+      // rate limit) keep the saved token so a reload works once the server is back.
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, [logout]);
 
@@ -35,7 +37,7 @@ export function AuthProvider({ children }) {
     setUser(d.user);
   };
 
-  return <AuthContext.Provider value={{ user, loading, login, register, logout }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, setUser, loading, login, register, logout }}>{children}</AuthContext.Provider>;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
