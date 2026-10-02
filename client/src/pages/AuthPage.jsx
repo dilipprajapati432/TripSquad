@@ -38,8 +38,8 @@ function AppPreview() {
   );
 }
 
-const DEMO_EMAIL = "abc@gmail.com";
-const DEMO_PASSWORD = "123456789";
+const DEMO_EMAIL = "demo@example.com";
+const DEMO_PASSWORD = "demo123";
 
 export default function AuthPage({ mode }) {
   const isLogin = mode === "login";
