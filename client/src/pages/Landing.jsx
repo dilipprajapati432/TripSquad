@@ -2,9 +2,9 @@ import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight, Check, ChevronDown, Coins, FileSpreadsheet, Link2, Map as MapIcon, MapPinned, MessageCircle,
-  MessageSquare, Radio, Sparkles, Vote, Wallet,
+  MessageSquare, Minus, Radio, Sparkles, Vote, Wallet,
 } from "lucide-react";
-import { SiteFooter, SiteHeader } from "../components/SiteChrome.jsx";
+import { SiteFooter, SiteHeader } from "../components/Layout.jsx";
 import SettleDemo from "../components/SettleDemo.jsx";
 import "../landing.css";
 
@@ -54,10 +54,29 @@ const SMALL_FEATURES = [
   { icon: Sparkles, tint: "tint-pink", title: "AI trip planner", text: "Describe what your group likes and get a first draft of the plan, with every place checked on the real map.", img: ["/landing/ai.jpg", 1456, 756, "The AI trip planner asking what the group wants from the trip"], fit: "contain" },
 ];
 
+
+const STATS = [
+  { value: "30", suffix: "+", label: "Travellers per trip" },
+  { value: "10", suffix: "", label: "Currencies supported" },
+  { value: "< 1s", suffix: "", label: "Real-time sync" },
+  { value: "0", suffix: "€", label: "Cost, forever" },
+];
+
+// "The usual way" = a group chat, a shared spreadsheet and a maps app, used side by side
+const COMPARE = [
+  ["One day-by-day plan everyone can edit", "Links and times scattered through the chat"],
+  ["Places, routes and each day on one shared map", "Pins saved in someone's maps app"],
+  ["Chat next to the plan, with read receipts", "Plans get buried under memes and voice notes"],
+  ["Split by equal or exact amounts, in any of 10 currencies", "One person keeps a spreadsheet and does the maths"],
+  ["Fewest payments to settle up, worked out for you", "Everyone pays everyone back separately"],
+  ["Polls to decide together, results update live", "\"Reply 1 or 2\" and someone counts by hand"],
+  ["Live location only with your trip, only when you choose", "\"Where are you?\" messages, or sharing with everyone"],
+];
+
 const STEPS = [
-  { icon: MapPinned, title: "Create a trip", text: "Pick a destination and dates. We find a cover photo and the weather for you." },
-  { icon: Link2, title: "Share the invite link", text: "Send it in any chat. Friends join in one tap and see everything straight away." },
-  { icon: Coins, title: "Plan, chat and split together", text: "Build the days, vote on plans, add expenses and settle up with the fewest payments." },
+  { icon: MapPinned, title: "Create a trip", text: "Name it, pick the destination, dates and currency. We add a cover photo, and the weather once the trip is about two weeks away." },
+  { icon: Link2, title: "Invite your friends", text: "Share the invite link in any chat. Friends open it, sign up free in under a minute and land straight in the trip." },
+  { icon: Coins, title: "Plan, chat and split together", text: "Build the days on the map, vote on plans, add expenses as you go and settle up with the fewest payments." },
 ];
 
 const FAQ = [
@@ -104,6 +123,16 @@ export default function Landing() {
             <Shot src="/landing/trip.jpg" alt="A TripSquad trip to Lisbon: cover photo, trip stats, the day plan and the shared map" width={2880} height={1800} eager />
             <img className="l-phone" src="/landing/phone.jpg" alt="The same trip on a phone" width={780} height={1688} loading="eager" decoding="async" />
           </div>
+        </div>
+        <div className="l-wrap">
+          <dl className="l-stats">
+            {STATS.map((s) => (
+              <div key={s.label} className="l-stat">
+                <dt>{s.value}{s.suffix}</dt>
+                <dd>{s.label}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
       </section>
 
@@ -170,13 +199,53 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ---------- Settle-up highlight ---------- */}
+      <section className="l-section l-band" id="splitting">
+        <div className="l-wrap l-settle">
+          <div className="l-settle-copy">
+            <span className="eyebrow">Bill splitting</span>
+            <h2>6 debts become <em>2 payments</em></h2>
+            <p>Four friends, a weekend of shared bills. Paying back every debt means six transfers. TripSquad nets out everyone's balance first, then matches the person who owes the most with the person who is owed the most, again and again.</p>
+            <ul className="l-points">
+              <li><Check size={16} /> At most n − 1 payments for a group of n people</li>
+              <li><Check size={16} /> Exact to the cent: money is stored in whole cents, never rounded twice</li>
+              <li><Check size={16} /> Mark a payment as paid and balances update for everyone</li>
+            </ul>
+          </div>
+          <SettleDemo />
+        </div>
+      </section>
+
+      {/* ---------- Comparison ---------- */}
+      <section className="l-section" id="why">
+        <div className="l-wrap">
+          <div className="l-head">
+            <span className="eyebrow">Why TripSquad</span>
+            <h2>Why not just use a group chat?</h2>
+            <p>Most groups plan with a chat, a spreadsheet and a maps app at the same time. Here's the difference.</p>
+          </div>
+          <div className="l-compare-table" role="table" aria-label="TripSquad compared with a group chat, a spreadsheet and a maps app">
+            <div className="l-compare-row l-compare-head" role="row">
+              <span role="columnheader" className="l-compare-us"><span className="l-compare-brand"><MapIcon size={16} /> TripSquad</span></span>
+              <span role="columnheader" className="l-compare-them">Group chat + spreadsheet + maps app</span>
+            </div>
+            {COMPARE.map(([us, them]) => (
+              <div key={us} className="l-compare-row" role="row">
+                <span role="cell" className="l-compare-us"><Check size={18} className="l-yes" /> {us}</span>
+                <span role="cell" className="l-compare-them"><Minus size={18} className="l-meh" /> {them}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ---------- How it works ---------- */}
-      <section className="l-section l-how" id="how">
+      <section className="l-section l-how l-band" id="how">
         <div className="l-wrap">
           <div className="l-head">
             <span className="eyebrow">How it works</span>
             <h2>From idea to itinerary in three steps</h2>
-            <p>No setup, no spreadsheets. Your friends only need the link.</p>
+            <p>Nothing to install, no spreadsheets. Friends join with a link and a free account.</p>
           </div>
           <ol className="l-steps">
             {STEPS.map((s, i) => (
@@ -188,23 +257,6 @@ export default function Landing() {
               </li>
             ))}
           </ol>
-        </div>
-      </section>
-
-      {/* ---------- Settle-up highlight ---------- */}
-      <section className="l-section">
-        <div className="l-wrap l-settle">
-          <div className="l-settle-copy">
-            <span className="eyebrow">Settle up</span>
-            <h2>6 debts become <em>2 payments</em></h2>
-            <p>Four friends, a weekend of shared bills. Paying back every debt means six transfers. TripSquad nets out everyone's balance first, then matches the person who owes the most with the person who is owed the most, again and again.</p>
-            <ul className="l-points">
-              <li><Check size={16} /> At most n − 1 payments for a group of n people</li>
-              <li><Check size={16} /> Exact to the cent: money is stored in whole cents, never rounded twice</li>
-              <li><Check size={16} /> Mark a payment as paid and balances update for everyone</li>
-            </ul>
-          </div>
-          <SettleDemo />
         </div>
       </section>
 
@@ -227,7 +279,7 @@ export default function Landing() {
       </section>
 
       {/* ---------- Final CTA ---------- */}
-      <section className="l-section">
+      <section className="l-section l-final-sec">
         <div className="l-wrap">
           <div className="l-final">
             <h2>Your next trip starts with one link.</h2>

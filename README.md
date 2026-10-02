@@ -4,6 +4,14 @@
 
 Built with the MERN stack + Socket.io + Leaflet.
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-TripSquad-0d9488?style=for-the-badge&logo=vercel)](https://tripsquad.vercel.app)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=flat-square&logo=mongodb&logoColor=white)](https://mongodb.com)
+[![React](https://img.shields.io/badge/React-Vite-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev)
+[![Node.js](https://img.shields.io/badge/Node.js-Express-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
+[![Socket.io](https://img.shields.io/badge/Socket.io-Real--time-010101?style=flat-square&logo=socket.io)](https://socket.io)
+
+> **[→ Try the live demo](https://tripsquad.vercel.app)** — create a trip, share the invite link in a private window, and watch both windows sync in real time.
+
 ---
 
 ## Features

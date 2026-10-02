@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { GITHUB_URL, SiteFooter, SiteHeader } from "../components/SiteChrome.jsx";
+import { SiteFooter, SiteHeader } from "../components/Layout.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import BackLink from "../components/BackLink.jsx";
 import "../landing.css";
 
+const GITHUB_URL = "https://github.com/dilipprajapati432";
 const UPDATED = "29 September 2026";
 const CONTACT_EMAIL = import.meta.env.VITE_CONTACT_EMAIL || "";
 

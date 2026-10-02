@@ -50,7 +50,7 @@
 
   --topbar-h: 60px;
   --topbar-bg: rgba(255, 255, 255, 0.82);
-  --content-max: 2400px;
+  --content-max: 1360px; /* one frame for every page: landing, app pages and their headers line up */
   --gutter: 1.5rem;
   --map-filter: none;
   color-scheme: light;
@@ -355,7 +355,8 @@ button.avatar { border: none; font: inherit; font-weight: 600; color: #fff; }
 /* ---------- Top bar ---------- */
 .topbar {
   position: sticky; top: 0; z-index: 1100; height: var(--topbar-h);
-  display: flex; align-items: center; justify-content: space-between; padding: 0 var(--gutter);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 max(var(--gutter), calc((100% - var(--content-max)) / 2 + var(--gutter))); /* aligned with the page content */
   background: var(--topbar-bg); border-bottom: 1px solid var(--line);
   backdrop-filter: blur(14px) saturate(1.6); -webkit-backdrop-filter: blur(14px) saturate(1.6);
 }
@@ -381,7 +382,6 @@ button.avatar { border: none; font: inherit; font-weight: 600; color: #fff; }
 .page { max-width: var(--content-max); margin: 0 auto; padding: 2rem var(--gutter) 4rem; }
 .page.narrow { max-width: 520px; }
 .page.page-join { max-width: 600px; }
-.page.page-profile { max-width: 1240px; }
 .page.narrow-wide { max-width: 660px; }
 .page-header, .page-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
 .page-header h1 { margin: 0; }
@@ -434,7 +434,7 @@ button.avatar { border: none; font: inherit; font-weight: 600; color: #fff; }
 .auth-card { display: flex; flex-direction: column; gap: 1.05rem; padding: 2.2rem; border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); max-width: 460px; width: 100%; justify-self: end; animation: pop 0.4s var(--ease); }
 .auth-card h2 { font-size: 1.55rem; margin-bottom: 0.1rem; }
 .auth-divider { display: flex; align-items: center; gap: 0.75rem; color: var(--muted); font-size: 0.8rem; margin: 0.1rem 0; }
-.auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 
 .pw-field { position: relative; display: block; }
 .pw-field input { padding-right: 2.8rem; }
@@ -517,7 +517,7 @@ button.avatar { border: none; font: inherit; font-weight: 600; color: #fff; }
 .require-box strong { color: var(--warn-text); }
 
 /* ---------- Profile & wizard ---------- */
-.profile-grid { display: grid; grid-template-columns: 320px 1fr; gap: 1.25rem; align-items: start; }
+.profile-grid { display: grid; grid-template-columns: 320px minmax(0, 820px); gap: 1.25rem; align-items: start; }
 .profile-danger { margin: 1.25rem 0 0 calc(320px + 1.25rem); }
 .danger-zone { border-color: color-mix(in srgb, var(--danger) 30%, var(--line)); }
 .danger-zone h3 { color: var(--danger); }
