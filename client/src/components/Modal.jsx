@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 // Open modals, newest last. Only the top one reacts to Escape, so closing a confirm
@@ -49,7 +50,8 @@ export default function Modal({ title, onClose, children, wide = false }) {
     };
   }, []);
 
-  return (
+  // Rendered on <body>: inside the page, sticky bars (like the trip tabs) could be drawn on top of it
+  return createPortal(
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div ref={ref} className={`modal card ${wide ? "modal-wide" : ""}`} role="dialog" aria-modal="true" aria-label={title}>
         <div className="modal-head">
@@ -58,6 +60,7 @@ export default function Modal({ title, onClose, children, wide = false }) {
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

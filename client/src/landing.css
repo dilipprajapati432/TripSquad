@@ -99,7 +99,9 @@
 /* Screenshot frame */
 .shot { margin: 0; border-radius: 14px; overflow: hidden; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow-lg); }
 .shot-bar { display: flex; gap: 6px; padding: 9px 12px; background: var(--surface-3); border-bottom: 1px solid var(--line); }
-.shot-bar span { width: 9px; height: 9px; border-radius: 50%; background: var(--line-strong); }
+.shot-bar span { --dot: #ff5f57; width: 9px; height: 9px; border-radius: 50%; background: var(--dot); box-shadow: 0 0 6px 1px color-mix(in srgb, var(--dot) 65%, transparent), inset 0 0 0 0.5px rgb(0 0 0 / 0.12); }
+.shot-bar span:nth-child(2) { --dot: #febc2e; }
+.shot-bar span:nth-child(3) { --dot: #28c840; }
 .shot img { display: block; width: 100%; height: auto; }
 :root[data-theme="dark"] .shot img, :root[data-theme="dark"] .l-small-img img { filter: brightness(0.92); }
 

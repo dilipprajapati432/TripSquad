@@ -10,6 +10,7 @@ import AuthPage from "./pages/AuthPage.jsx";
 import Landing from "./pages/Landing.jsx";
 // Loaded with the first page (small), so the header never disappears while they load
 import { PrivacyPage, TermsPage } from "./pages/Legal.jsx";
+import Wordmark from "./components/Wordmark.jsx";
 // Pages load on demand, so the login page doesn't download the map, drag & drop, etc.
 const loaders = {
   dashboard: () => import("./pages/Dashboard.jsx"),
@@ -94,7 +95,7 @@ function Header() {
   return (
     <header className={`topbar ${aligned ? "topbar-aligned" : ""}`}>
       <Link to="/" className="brand">
-        <img src="/wordmark.png" alt="TripSquad" height="32" style={{ display: "block", width: "auto" }} />
+        <Wordmark />
       </Link>
       <div className="topbar-right">
         <ThemeToggle />

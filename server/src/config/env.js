@@ -36,6 +36,8 @@ export const env = {
   maxMembers: Number(process.env.MAX_MEMBERS) || 30,
   contactEmail: process.env.CONTACT_EMAIL || "tripsquad@example.com",
   geocoderUrl: process.env.GEOCODER_URL || "https://nominatim.openstreetmap.org",
+  // Second place search that tolerates spelling differences. Set PHOTON_URL=off to turn it off.
+  photonUrl: process.env.PHOTON_URL === "off" ? "" : process.env.PHOTON_URL || "https://photon.komoot.io",
   fxApiUrl: process.env.FX_API_URL || "https://open.er-api.com/v6/latest",
   weatherUrl: process.env.WEATHER_API_URL || "https://api.open-meteo.com/v1/forecast",
   wikivoyageApi: process.env.WIKIVOYAGE_API_URL || "https://en.wikivoyage.org/w/api.php",
@@ -44,5 +46,5 @@ export const env = {
   geminiModel: process.env.GEMINI_MODEL || "gemini-2.5-flash",
   groqKey: process.env.GROQ_API_KEY || "",
   groqBaseUrl: process.env.GROQ_BASE_URL || "https://api.groq.com/openai/v1",
-  groqModel: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+  groqModel: process.env.GROQ_MODEL || "openai/gpt-oss-120b", // Llama 3.3 70B left Groq's free tier in Aug 2026
 };

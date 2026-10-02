@@ -363,6 +363,11 @@ button.avatar { border: none; font: inherit; font-weight: 600; color: #fff; }
 .brand { display: flex; align-items: center; gap: 0.55rem; font: 750 1.15rem var(--font-display); letter-spacing: -0.02em; color: var(--text); }
 .brand:hover { text-decoration: none; }
 .logo-mark { display: block; }
+/* Logo: the dark-mode file has light text */
+.wordmark { display: block; width: auto; max-width: 100%; }
+.wordmark-dark { display: none; }
+:root[data-theme="dark"] .wordmark-light { display: none; }
+:root[data-theme="dark"] .wordmark-dark { display: block; }
 .topbar-right { display: flex; align-items: center; gap: 0.35rem; }
 .menu { position: relative; }
 .menu-btn { display: flex; align-items: center; gap: 0.45rem; background: none; border: 1px solid transparent; padding: 3px 8px 3px 3px; border-radius: 99px; cursor: pointer; color: var(--text); font: inherit; font-weight: 550; transition: background-color 0.15s; }
@@ -606,6 +611,14 @@ button.avatar { border: none; font: inherit; font-weight: 600; color: #fff; }
 .search-results { position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 1200; list-style: none; margin: 0; padding: 0.3rem; max-height: 320px; overflow-y: auto; box-shadow: var(--shadow-lg); animation: pop 0.14s var(--ease); }
 .search-results button { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; text-align: left; padding: 0.55rem 0.65rem; background: none; border: none; border-radius: 8px; cursor: pointer; font: inherit; color: var(--text); }
 .search-results button:hover { background: var(--surface-3); }
+.search-results .search-pin { border-top: 1px solid var(--line); margin-top: 0.25rem; padding-top: 0.25rem; }
+.search-results .search-pin button { flex-direction: row; align-items: center; gap: 0.45rem; color: var(--brand-text); font-weight: 600; font-size: 0.9rem; }
+.pin-banner { display: flex; align-items: center; gap: 0.6rem; padding: 0.65rem 0.8rem; border-radius: 12px; background: var(--brand-soft); border: 1px solid var(--brand-line); color: var(--text); font-size: 0.92rem; animation: pop 0.2s var(--ease); }
+.pin-banner svg { color: var(--brand-text); flex-shrink: 0; }
+.pin-banner span { flex: 1; }
+.pending-pin { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; margin: 0; }
+.pending-pin svg { color: var(--brand-text); }
+.pending-pin .link-btn { font-size: inherit; }
 .pending { display: flex; flex-direction: column; gap: 0.6rem; border-color: var(--brand-line); box-shadow: 0 0 0 4px var(--focus); animation: pop 0.2s var(--ease); }
 
 .day { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); transition: border-color 0.15s, box-shadow 0.15s; }
@@ -648,6 +661,17 @@ button.avatar { border: none; font: inherit; font-weight: 600; color: #fff; }
 .pin { width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); display: grid; place-items: center; border: 2.5px solid #fff; box-shadow: 0 3px 8px rgba(16, 24, 40, 0.35); transition: transform 0.2s var(--ease); }
 .pin span { transform: rotate(45deg); color: #fff; font-weight: 700; font-size: 12px; font-family: var(--font); }
 .pin-active { transform: rotate(-45deg) scale(1.22); box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.3), 0 4px 10px rgba(16, 24, 40, 0.4); }
+/* The place being added: dashed outline, can be dragged */
+.pin-preview { background: var(--accent, #e8590c); border-style: dashed; animation: pin-drop 0.35s var(--ease); cursor: grab; }
+.pin-preview span { font-size: 16px; line-height: 1; }
+@keyframes pin-drop { from { transform: rotate(-45deg) translate(0, -14px); opacity: 0; } to { transform: rotate(-45deg); opacity: 1; } }
+/* "Drop a pin" mode */
+.map-picking.leaflet-container, .map-picking .leaflet-interactive, .map-picking .leaflet-grab { cursor: crosshair; }
+.map-picking { outline: 3px solid var(--brand); outline-offset: -3px; }
+.map-pin-hint { display: none; position: absolute; z-index: 1000; top: 10px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 100px); align-items: center; gap: 0.4rem; padding: 0.3rem 0.35rem 0.3rem 0.75rem; border-radius: 999px; background: var(--card); border: 1px solid var(--brand-line); box-shadow: var(--shadow-lg); font-size: 0.88rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.map-pin-hint svg { color: var(--brand-text); flex-shrink: 0; }
+.map-pin-hint .icon-btn { width: 28px; height: 28px; flex-shrink: 0; }
+@media (max-width: 960px) { .map-pin-hint { display: flex; } }
 .person-marker { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .person-pin { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; overflow: hidden; color: #fff; font-weight: 700; font-size: 13px; font-family: var(--font); border: 2.5px solid #fff; box-shadow: 0 0 0 2.5px var(--online), 0 4px 10px rgba(16, 24, 40, 0.3); }
 .person-pin img { width: 100%; height: 100%; object-fit: cover; }
@@ -670,7 +694,18 @@ button.avatar { border: none; font: inherit; font-weight: 600; color: #fff; }
 .ai-day h4 { display: flex; align-items: center; gap: 0.4rem; }
 .ai-place { flex-direction: row; align-items: flex-start; gap: 0.6rem; font-weight: 400; padding: 0.45rem 0.55rem; border-radius: 8px; color: var(--text); }
 .ai-place:hover { background: var(--surface-3); }
-.ai-missing { opacity: 0.5; }
+.ai-place-row { border-radius: 8px; }
+.ai-place-line { display: flex; align-items: flex-start; gap: 0.5rem; }
+.ai-place-line .ai-place { flex: 1; min-width: 0; }
+.ai-missing .ai-place { opacity: 0.55; } /* only the text is faded, so "Find on map" stays clear */
+.ai-find { flex-shrink: 0; margin-top: 0.2rem; }
+.ai-address { display: flex; align-items: center; gap: 0.25rem; color: var(--muted); margin-top: 0.15rem; }
+.ai-address svg { flex-shrink: 0; }
+.ai-find-box { display: flex; gap: 0.5rem; align-items: center; padding: 0 0.55rem 0.5rem 2.4rem; }
+.ai-find-box .search { flex: 1; }
+.ai-find-hint { margin: 0; padding: 0 0.55rem 0.55rem 2.4rem; }
+@media (max-width: 560px) { .ai-find-hint { padding-left: 0.55rem; } }
+@media (max-width: 560px) { .ai-place-line { flex-wrap: wrap; } .ai-find { margin-left: 2rem; } .ai-find-box { padding-left: 0.55rem; } }
 
 /* ---------- Money tab ---------- */
 .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem; }
@@ -922,9 +957,3 @@ button.avatar { border: none; font: inherit; font-weight: 600; color: #fff; }
 /* Long words / URLs without spaces must wrap instead of pushing the layout sideways */
 .expense-main strong, .poll-text, .person-row strong, .trip-card-name, .featured-body h2, .channel-main strong, .place-title strong, .drawer-body h2, .chat-head strong, .poll h3, .section-head h3 { overflow-wrap: anywhere; }
 .person-row:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
-
-/* Swap wordmark for dark mode */
-[data-theme="dark"] .brand img[src*="wordmark.png"] {
-  content: url("/wordmark-dark.png");
-  filter: none;
-}

@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef } from "react";
-import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { MessageSquare, Navigation } from "lucide-react";
 import { initials, timeAgo, dayColor, distanceM, formatDistance, directionsUrl } from "../lib/format.js";
@@ -97,6 +97,29 @@ function FlyTo({ target }) {
   return null;
 }
 
+/** "Drop a pin" mode: a crosshair cursor, and a click on the map picks that spot. */
+function PickPoint({ active, onPick }) {
+  const map = useMap();
+  useEffect(() => {
+    const el = map.getContainer();
+    el.classList.toggle("map-picking", active);
+    return () => el.classList.remove("map-picking");
+  }, [active, map]);
+  useMapEvents({
+    click(e) {
+      if (active) onPick?.({ lat: Number(e.latlng.lat.toFixed(6)), lng: Number(e.latlng.lng.toFixed(6)) });
+    },
+  });
+  return null;
+}
+
+const previewIcon = L.divIcon({
+  className: "",
+  html: '<div class="pin pin-preview"><span>+</span></div>',
+  iconSize: [30, 30],
+  iconAnchor: [15, 30],
+});
+
 /** Leaflet needs a nudge when its container changes size (tabs, mobile layout). */
 function AutoResize() {
   const map = useMap();
@@ -129,7 +152,11 @@ function spreadOffsets(people) {
   return out;
 }
 
-export default function MapView({ places, center, members, locations, meId, selectedId, onSelect, fitKey, flyTarget, showAllKey, onMessage }) {
+/**
+ * `pickMode` + `onPickPoint`: the next click on the map picks a spot ("Drop a pin").
+ * `preview` ({lat,lng}): the place being added, shown as a pin you can drag (`onPreviewMove`).
+ */
+export default function MapView({ places, center, members, locations, meId, selectedId, onSelect, fitKey, flyTarget, showAllKey, onMessage, pickMode = false, onPickPoint, preview, onPreviewMove }) {
   const memberById = useMemo(() => Object.fromEntries(members.map((m) => [m.id, m])), [members]);
   const people = useMemo(() => Object.values(locations).filter((l) => memberById[l.userId]), [locations, memberById]);
   const offsets = useMemo(() => spreadOffsets(people), [people]);
@@ -162,6 +189,17 @@ export default function MapView({ places, center, members, locations, meId, sele
       <FitBounds places={places} people={people} fitKey={fitKey} center={center} />
       <FitPeople people={people} places={places} showAllKey={showAllKey} />
       <FlyTo target={flyTarget} />
+      <PickPoint active={pickMode} onPick={onPickPoint} />
+      {preview && (
+        <Marker
+          position={[preview.lat, preview.lng]}
+          icon={previewIcon}
+          draggable
+          zIndexOffset={3000}
+          title="New place: drag to adjust"
+          eventHandlers={{ dragend: (e) => { const ll = e.target.getLatLng(); onPreviewMove?.({ lat: Number(ll.lat.toFixed(6)), lng: Number(ll.lng.toFixed(6)) }); } }}
+        />
+      )}
 
       {routes.map(([day, pts]) => (
         <Polyline key={day} positions={pts} pathOptions={{ color: dayColor(Number(day)), weight: 3, dashArray: "6 8", opacity: 0.8 }} />

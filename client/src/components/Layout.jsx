@@ -4,15 +4,7 @@ import { Menu, X } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 
 import ThemeToggle from "./ThemeToggle.jsx";
-
-
-/** Wordmark: loads the real TripSquad logo image exactly as-is */
-function Wordmark({ height = 32 }) {
-  return (
-    <img src="/wordmark.png" alt="TripSquad" height={height}
-      style={{ display: "block", width: "auto" }} />
-  );
-}
+import Wordmark from "./Wordmark.jsx";
 
 // In-page sections, in the same order as on the landing page
 // Short noun labels, matching each section's small heading on the page
@@ -84,7 +76,7 @@ export function SiteHeader({ sections = false }) {
 
   return (
     <header className="topbar site-header" ref={menuRef}>
-      <Link to="/" className="brand" aria-label="TripSquad home">
+      <Link to="/" className="brand">
         <Wordmark />
       </Link>
       <nav className="site-nav" aria-label="Page sections">{links}</nav>

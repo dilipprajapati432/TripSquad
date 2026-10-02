@@ -14,7 +14,7 @@ import {
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { api } from "../lib/api.js";
-import { CloudSun, Droplets, GripVertical, Lightbulb, Map as MapIcon, Sparkles, StickyNote, Trash2 } from "lucide-react";
+import { CloudSun, Droplets, GripVertical, Lightbulb, Map as MapIcon, MapPinned, Sparkles, StickyNote, Trash2, X } from "lucide-react";
 import { dayDate, formatDay, dayColor, isoDay } from "../lib/format.js";
 import { weatherIcon } from "../lib/icons.jsx";
 import MapView from "../components/MapView.jsx";
@@ -128,6 +128,7 @@ export default function PlanTab({ trip, setTrip, locations, aiEnabled, weather, 
   const [selectedId, setSelectedId] = useState(null);
   const [flyTarget, setFlyTarget] = useState(null);
   const [pending, setPending] = useState(null);
+  const [pinFor, setPinFor] = useState(null); // name of the place waiting for a pin on the map ("Drop a pin" mode)
   const [error, setError] = useState("");
   const [activeId, setActiveId] = useState(null);
   const [aiOpen, setAiOpen] = useState(false);
@@ -166,6 +167,27 @@ export default function PlanTab({ trip, setTrip, locations, aiEnabled, weather, 
       if (snapshot) setTrip((t) => ({ ...t, places: snapshot }));
     }
   }
+
+  /** "Drop a pin": the next click on the map sets the place's position. */
+  function startPin(name) {
+    setPinFor(name || pending?.name || "");
+    // On phones the map is below the list: bring it into view
+    document.querySelector(".plan-map")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+  function pinPicked(point) {
+    const name = pinFor;
+    setPinFor(null);
+    setPending((p) => (p?.pinned
+      ? { ...p, ...point } // moving the pin of the place being added
+      : { name, address: "Dropped pin", ...point, day: filterDay === "all" ? 0 : filterDay, note: "", pinned: true }));
+    setTimeout(() => document.querySelector(".pending")?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 50);
+  }
+  useEffect(() => {
+    if (pinFor === null) return;
+    const onKey = (e) => e.key === "Escape" && setPinFor(null);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [pinFor]);
 
   const addPlace = () => {
     const body = { name: pending.name, address: pending.address, lat: pending.lat, lng: pending.lng, day: pending.day, note: pending.note };
@@ -228,16 +250,31 @@ export default function PlanTab({ trip, setTrip, locations, aiEnabled, weather, 
     <div className="plan">
       <div className="plan-list">
         <div className="plan-tools">
-          <PlaceSearch center={trip.center} onPick={(r) => setPending({ ...r, day: filterDay === "all" ? 0 : filterDay, note: "" })} />
+          <PlaceSearch center={trip.center} onPick={(r) => { setPinFor(null); setPending({ ...r, day: filterDay === "all" ? 0 : filterDay, note: "" }); setFlyTarget({ lat: r.lat, lng: r.lng }); }} onDropPin={startPin} />
           <button className="btn btn-secondary" onClick={() => setAiOpen(true)} title={aiEnabled ? "" : "Add an AI key on the server to enable"}>
             <Sparkles size={16} /> AI plan
           </button>
         </div>
 
+        {pinFor !== null && (
+          <div className="pin-banner" role="status">
+            <MapPinned size={18} aria-hidden="true" />
+            <span>Click the map where {pinFor ? <strong>{pinFor}</strong> : "the place"} is. Zoom in for a precise spot.</span>
+            <button className="btn btn-ghost btn-sm" onClick={() => setPinFor(null)}>Cancel</button>
+          </div>
+        )}
+
         {pending && (
           <div className="card pending">
-            <input value={pending.name} onChange={(e) => setPending({ ...pending, name: e.target.value })} aria-label="Place name" />
-            <p className="muted small">{pending.address}</p>
+            <input value={pending.name} onChange={(e) => setPending({ ...pending, name: e.target.value })} aria-label="Place name" placeholder="Name this place" autoFocus={pending.pinned && !pending.name} />
+            {pending.pinned ? (
+              <p className="muted small pending-pin">
+                <MapPinned size={14} aria-hidden="true" /> Pinned on the map. Drag the + pin to adjust, or
+                <button type="button" className="link-btn" onClick={() => startPin(pending.name)}>pick again</button>
+              </p>
+            ) : (
+              <p className="muted small">{pending.address}</p>
+            )}
             <div className="row-2">
               <select value={pending.day} onChange={(e) => setPending({ ...pending, day: Number(e.target.value) })}>
                 <option value={0}>Ideas (not scheduled)</option>
@@ -247,7 +284,7 @@ export default function PlanTab({ trip, setTrip, locations, aiEnabled, weather, 
             </div>
             <div className="row">
               <button className="btn btn-primary btn-sm" onClick={addPlace} disabled={!pending.name.trim()}>Add to trip</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => setPending(null)}>Cancel</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => { setPending(null); setPinFor(null); }}>Cancel</button>
             </div>
           </div>
         )}
@@ -318,6 +355,13 @@ export default function PlanTab({ trip, setTrip, locations, aiEnabled, weather, 
         onShowAll={() => setShowAllKey((k) => k + 1)}
       />
       <div className="plan-map">
+        {pinFor !== null && (
+          // On phones the banner above the list is off-screen while the map is in view
+          <div className="map-pin-hint" role="status">
+            <MapPinned size={15} aria-hidden="true" /> Tap where {pinFor || "the place"} is
+            <button type="button" className="icon-btn" onClick={() => setPinFor(null)} aria-label="Cancel dropping a pin"><X size={15} /></button>
+          </div>
+        )}
         <MapView
           places={visible}
           center={trip.center}
@@ -333,6 +377,10 @@ export default function PlanTab({ trip, setTrip, locations, aiEnabled, weather, 
           meId={userId}
           showAllKey={showAllKey}
           onMessage={onMessage}
+          pickMode={pinFor !== null}
+          onPickPoint={pinPicked}
+          preview={pending ? { lat: pending.lat, lng: pending.lng } : null}
+          onPreviewMove={(pt) => setPending((p) => p && { ...p, ...pt })}
         />
       </div>
       </div>
