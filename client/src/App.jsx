@@ -5,7 +5,7 @@ import { ChevronDown, FileText, LogOut, Luggage, ShieldCheck, UserRound } from "
 import ThemeToggle from "./components/ThemeToggle.jsx";
 import ScrollManager from "./components/ScrollManager.jsx";
 import Avatar from "./components/Avatar.jsx";
-import Logo from "./components/Logo.jsx";
+
 import AuthPage from "./pages/AuthPage.jsx";
 import Landing from "./pages/Landing.jsx";
 // Loaded with the first page (small), so the header never disappears while they load
@@ -94,7 +94,7 @@ function Header() {
   return (
     <header className={`topbar ${aligned ? "topbar-aligned" : ""}`}>
       <Link to="/" className="brand">
-        <Logo /> <span>TripSquad</span>
+        <img src="/wordmark.png" alt="TripSquad" height="32" style={{ display: "block", width: "auto" }} />
       </Link>
       <div className="topbar-right">
         <ThemeToggle />

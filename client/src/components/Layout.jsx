@@ -2,9 +2,17 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
-import Logo from "./Logo.jsx";
+
 import ThemeToggle from "./ThemeToggle.jsx";
 
+
+/** Wordmark: loads the real TripSquad logo image exactly as-is */
+function Wordmark({ height = 32 }) {
+  return (
+    <img src="/wordmark.png" alt="TripSquad" height={height}
+      style={{ display: "block", width: "auto" }} />
+  );
+}
 
 // In-page sections, in the same order as on the landing page
 // Short noun labels, matching each section's small heading on the page
@@ -77,7 +85,7 @@ export function SiteHeader({ sections = false }) {
   return (
     <header className="topbar site-header" ref={menuRef}>
       <Link to="/" className="brand" aria-label="TripSquad home">
-        <Logo /> <span>TripSquad</span>
+        <Wordmark />
       </Link>
       <nav className="site-nav" aria-label="Page sections">{links}</nav>
       <div className="topbar-right">
@@ -109,7 +117,7 @@ export function SiteFooter() {
     <footer className="site-footer">
       <div className="site-footer-inner">
         <div className="site-footer-brand">
-          <Link to="/" className="brand"><Logo /> <span>TripSquad</span></Link>
+          <Link to="/" className="brand"><Wordmark /></Link>
           <p>Plan group trips together: one shared map, one chat, one fair bill.</p>
         </div>
         <nav className="site-footer-links" aria-label="Footer">
@@ -119,7 +127,6 @@ export function SiteFooter() {
       </div>
       <div className="site-footer-bottom">
         <p>© {new Date().getFullYear()} TripSquad. All rights reserved.</p>
-        <p>Built with ❤️ by Dilip Prajapati</p>
       </div>
     </footer>
   );

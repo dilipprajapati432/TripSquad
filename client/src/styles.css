@@ -922,3 +922,9 @@ button.avatar { border: none; font: inherit; font-weight: 600; color: #fff; }
 /* Long words / URLs without spaces must wrap instead of pushing the layout sideways */
 .expense-main strong, .poll-text, .person-row strong, .trip-card-name, .featured-body h2, .channel-main strong, .place-title strong, .drawer-body h2, .chat-head strong, .poll h3, .section-head h3 { overflow-wrap: anywhere; }
 .person-row:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+
+/* Swap wordmark for dark mode */
+[data-theme="dark"] .brand img[src*="wordmark.png"] {
+  content: url("/wordmark-dark.png");
+  filter: none;
+}
