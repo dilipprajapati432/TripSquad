@@ -10,7 +10,14 @@ Built with the MERN stack + Socket.io + Leaflet.
 [![Node.js](https://img.shields.io/badge/Node.js-Express-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
 [![Socket.io](https://img.shields.io/badge/Socket.io-Real--time-010101?style=flat-square&logo=socket.io)](https://socket.io)
 
-> **[→ Try the live demo](https://tripsquad.vercel.app)** — create a trip, share the invite link in a private window, and watch both windows sync in real time.
+> **[→ Try the live demo](https://gettripsquad.vercel.app)** — create a trip, share the invite link in a private window, and watch both windows sync in real time.
+
+##Screnshots
+<img width="1917" height="1015" alt="image" src="https://github.com/user-attachments/assets/689cf784-8956-489e-b9f0-33d45781ae01" />
+<img width="1917" height="1018" alt="image" src="https://github.com/user-attachments/assets/2bf9bb06-96bf-4828-a65c-f72d1d6a9a24" />
+<img width="1917" height="1015" alt="image" src="https://github.com/user-attachments/assets/cc545ca2-3b9b-4aa9-ae1b-89a4071da99d" />
+<img width="1917" height="1015" alt="image" src="https://github.com/user-attachments/assets/18ae50dd-d676-428f-b243-0cc47c084dee" />
+<img width="1917" height="1011" alt="image" src="https://github.com/user-attachments/assets/80f357c9-16f8-4ed1-86e5-85fa1b5c07d5" />
 
 ---
 
@@ -179,16 +186,7 @@ Notes:
 | Toasts and confirm dialogs (no `alert()`) | `client/src/context/UIContext.jsx` |
 | Dark mode with CSS variables | `client/src/styles.css` (`:root[data-theme="dark"]`), `client/src/lib/theme.js` |
 
-## Interview talking points
 
-- **Why store money in paise?** `0.1 + 0.2 !== 0.3` in JavaScript. Integers avoid rounding bugs; `splitEqual` hands out leftover paise so shares always add up exactly.
-- **Why save the exchange rate on each expense?** Rates change daily. Old balances must not change when rates move.
-- **How does settle-up work?** Compute each person's balance (paid − owed), then greedily match the biggest debtor with the biggest creditor. At most n−1 payments.
-- **What if two people edit the same trip at once?** Writes to the same trip are queued per document, and Mongoose optimistic concurrency (`__v`) rejects stale saves across servers, which are retried with fresh data. No change is lost.
-- **How do private chats stay private?** A DM channel is `dm:<idA>_<idB>` (sorted ids). The server checks you are one of the two ids *and* both are still trip members, and sends DM events only to those two users' socket rooms (`user:<id>`), never to the whole trip.
-- **How do unread counts work without storing "read" on every message?** Each person has one `ChatRead` row per channel with `lastReadAt`. Unread = messages after that time, not sent by you. "Seen by" = people whose `lastReadAt` is after your last message.
-- **Why is live location not in the database?** Privacy by design: it's only kept in memory, visible to trip members, and disappears when sharing stops.
-- **What if 1,000 people join?** Trips are capped (`MAX_MEMBERS`). To scale to multiple servers, add the Socket.io Redis adapter (or MongoDB change streams) so rooms span instances.
 
 ## Ideas for next steps
 
@@ -201,3 +199,7 @@ Notes:
 ---
 
 Map data © OpenStreetMap contributors. Please follow the [Nominatim usage policy](https://operations.osmfoundation.org/policies/nominatim/) and [tile usage policy](https://operations.osmfoundation.org/policies/tiles/) — fine for a personal project; for heavy traffic use a paid geocoding/tile provider.
+
+##Built by:
+Dilip Prajapati
+dilipkohar4320@gmail.com
